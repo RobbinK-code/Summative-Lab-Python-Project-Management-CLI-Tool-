@@ -106,6 +106,22 @@ class PersistentUser:
             "projects": [project.to_dict() for project in self.projects],
         }
 
+@classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PersistentUser":
+        raw_projects = data.get("projects", [])
+        projects = []
+        if isinstance(raw_projects, list):
+            for project_data in raw_projects:
+                if isinstance(project_data, dict):
+                    projects.append(PersistentProject.from_dict(project_data))
+        return cls(name=str(data.get("name", "")), projects=projects)
+
+
+def _serialize_task(task: Any) -> Dict[str, Any]:
+    return {
+        "title": getattr(task, "title", ""),
+        "is_completed": bool(getattr(task, "is_completed", False)),
+    }
 
 
 
