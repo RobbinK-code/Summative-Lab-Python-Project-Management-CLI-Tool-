@@ -17,6 +17,12 @@ class StorageInterface(abc.ABC):
     def load(self, engine: Any) -> None:
         raise NotImplementedError
 
+class FileStorage(StorageInterface):
+    """File-based storage implementation using JSON persistence."""
+
+    def __init__(self, file_path: Path | str = DEFAULT_STORAGE_FILE) -> None:
+        self.file_path = Path(file_path)
+
 
 
 
