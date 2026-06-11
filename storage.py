@@ -95,6 +95,18 @@ class PersistentProject:
                     tasks.append(PersistentTask.from_dict(task_data))
         return cls(title=str(data.get("title", "")), tasks=tasks)
 
+class PersistentUser:
+    def __init__(self, name: str, projects: List[PersistentProject] | None = None) -> None:
+        self.name = name
+        self.projects = projects or []
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "projects": [project.to_dict() for project in self.projects],
+        }
+
+
 
 
 
