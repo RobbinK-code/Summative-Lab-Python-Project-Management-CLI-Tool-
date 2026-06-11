@@ -1,70 +1,65 @@
-from models import User, Project, Task
+from models import User, Product, Order
 
-def require_admin(func):
+def require_manager(func):
+    """Custom Decorator: Only allows users with the 'Manager' role to proceed."""
     def wrapper(self, active_user, *args, **kwargs):
-        if active_user.role != "Admin":
-            return False, "Access Denied: Only Admins can do this action!"
+        if active_user.role != "Manager":
+            return False, "Access Denied: Only a Bakery Manager can do this!"
         return func(self, active_user, *args, **kwargs)
     return wrapper
 
-class ProjectManagerEngine:
+class BakeryEngine:
     def __init__(self):
-        self.users = {}  # Dictionary to hold: {"username": UserObject}
+        self.users = {}      # {"username": UserObject}
+        self.inventory = {}  # {"Croissant": ProductObject}
 
-    def register(self, name, password, role="User"):
+    def register(self, name, password, role="Staff"):
         if name in self.users:
-            return False, "This username is already taken!"
-        
-        # Create user object and save it to our dictionary
+            return False, "Username already exists."
         self.users[name] = User(name, password, role)
-        return True, f"User '{name}' registered successfully as a {role}."
+        return True, f"Employee '{name}' registered as {role}."
 
     def login(self, name, password):
-        if name not in self.users:
-            return None, "User not found!"
-        
-        user_obj = self.users[name]
-        if not user_obj.check_password(password):
-            return None, "Wrong password!"
-        
-        return user_obj, "Login successful!"
+        if name not in self.users or not self.users[name].check_password(password):
+            return None, "Invalid credentials."
+        return self.users[name], "Login successful."
 
-    @require_admin
-    def create_project(self, active_user, target_username, project_title):
-        """Uses the @require_admin decorator to restrict access."""
-        if target_username not in self.users:
-            return False, "The user you want to assign this project to doesn't exist!"
+    @require_manager
+    def add_inventory_item(self, active_user, item_name, price, stock):
+        """Manager Only: Adds a new pastry/bread type or updates stock."""
+        if item_name in self.inventory:
+            # Update stock safely using our setter property validation
+            try:
+                self.inventory[item_name].stock += stock
+                return True, f"Updated '{item_name}' stock to {self.inventory[item_name].stock}."
+            except ValueError as e:
+                return False, str(e)
         
-        target_user_obj = self.users[target_username]
-        
-        # Check if project title already exists for this user
-        for p in target_user_obj.projects:
-            if p.title == project_title:
-                return False, "This project already exists for this user!"
-        
-        # Add the project
-        new_project = Project(project_title)
-        target_user_obj.projects.append(new_project)
-        return True, f"Project '{project_title}' assigned to '{target_username}'."
+        self.inventory[item_name] = Product(item_name, price, stock)
+        return True, f"Successfully added {item_name} to the bakery menu."
 
-    @require_admin
-    def create_task(self, active_user, username, project_title, task_title):
-        if username not in self.users:
-            return False, "User not found."
+    def process_bakery_order(self, employee_username, item_name, quantity):
+        """Processes a sale, calculates subtotals, and reduces stock."""
+        if employee_username not in self.users:
+            return False, "Employee user not found."
+        if item_name not in self.inventory:
+            return False, f"We don't bake '{item_name}' here!"
         
-        user_obj = self.users[username]
+        user_obj = self.users[employee_username]
+        product = self.inventory[item_name]
+
+        # Business Rule: Check if we have enough stock items left
+        if product.stock < quantity:
+            return False, f"Incomplete Order: Only {product.stock} left in stock!"
+
+        # Calculate Subtotal
+        subtotal = product.price * quantity
         
-        # Find the project
-        project_obj = None
-        for p in user_obj.projects:
-            if p.title == project_title:
-                project_obj = p
-                break
-                
-        if project_obj is None:
-            return False, "Project not found for this user."
-        
-        # Add the task
-        new_task = Task(task_title)
-        project_obj.tasks.append(new_task)
-        return True, f"Task '{task_title}' added to project '{project_title}'."
+        # Deduct stock using our encapsulation setter property
+        product.stock -= quantity
+
+        # Create order record and save to user history
+        new_order = Order(item_name, quantity, subtotal)
+        user_obj.completed_orders.append(new_order)
+
+        return True, f"Order Complete! Total: ${subtotal:.2f}. (Remaining stock: {product.stock})"

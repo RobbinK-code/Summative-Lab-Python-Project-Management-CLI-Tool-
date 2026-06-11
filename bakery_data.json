@@ -1,0 +1,17 @@
+{
+    "users": {
+        "chef": {
+            "name": "chef",
+            "role": "Manager",
+            "password_hash": "fa0990ab6f2ecfd562611cedad67152e8c1117f91c22d15094d1e242314243af",
+            "completed_orders": []
+        }
+    },
+    "inventory": {
+        "Croissant": {
+            "name": "Croissant",
+            "price": 2.5,
+            "stock": 50
+        }
+    }
+}
