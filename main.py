@@ -10,7 +10,7 @@ from rich.table import Table
 
 console = Console()
 
-def main():
+def main(): #
     engine = ProjectManagerEngine()
     storage.load_data(engine)
 
