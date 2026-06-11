@@ -123,6 +123,34 @@ def _serialize_task(task: Any) -> Dict[str, Any]:
         "is_completed": bool(getattr(task, "is_completed", False)),
     }
 
+def _serialize_project(project: Any) -> Dict[str, Any]:
+    tasks = getattr(project, "tasks", []) or []
+    return {
+        "title": getattr(project, "title", ""),
+        "tasks": [_serialize_task(task) for task in tasks if task is not None],
+    }
+
+
+def _serialize_user(user: Any) -> Dict[str, Any]:
+    projects = getattr(user, "projects", []) or []
+    return {
+        "name": getattr(user, "name", ""),
+        "projects": [_serialize_project(project) for project in projects if project is not None],
+    }
+
+
+def _load_json(file_path: Path) -> Any:
+    try:
+        with Path(file_path).open("r", encoding="utf-8") as handle:
+            content = handle.read()
+            if not content.strip():
+                return []
+            return json.loads(content)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return []
+
+
+
 
 
 
