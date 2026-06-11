@@ -56,6 +56,17 @@ def load_data(engine: Any, file_path: Path | str = DEFAULT_STORAGE_FILE) -> None
     """Load JSON storage and populate the engine users dictionary."""
     FileStorage(file_path).load(engine)
 
+class PersistentTask:
+    def __init__(self, title: str, is_completed: bool = False) -> None:
+        self.title = title
+        self.is_completed = is_completed
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "title": self.title,
+            "is_completed": self.is_completed,
+        }
+
 
 
 
