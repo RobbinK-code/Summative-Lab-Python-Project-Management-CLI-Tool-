@@ -47,6 +47,14 @@ def save(self, users: Dict[str, Any]) -> None:
             user = PersistentUser.from_dict(user_data)
             engine.users[user.name] = user
 
+def save_data(users: Dict[str, Any], file_path: Path | str = DEFAULT_STORAGE_FILE) -> None:
+    """Serialize engine users and save them to a JSON file."""
+    FileStorage(file_path).save(users)
+
+
+def load_data(engine: Any, file_path: Path | str = DEFAULT_STORAGE_FILE) -> None:
+    """Load JSON storage and populate the engine users dictionary."""
+    FileStorage(file_path).load(engine)
 
 
 
