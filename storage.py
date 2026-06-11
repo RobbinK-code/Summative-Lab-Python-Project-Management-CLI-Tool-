@@ -33,6 +33,20 @@ def save(self, users: Dict[str, Any]) -> None:
             # If the file cannot be written, swallow the error to avoid crashing the app.
             pass
 
+  def load(self, engine: Any) -> None:
+        data = _load_json(self.file_path)
+        engine.users = {}
+
+        if not isinstance(data, list):
+            return
+
+        for user_data in data:
+            if not isinstance(user_data, dict):
+                continue
+
+            user = PersistentUser.from_dict(user_data)
+            engine.users[user.name] = user
+
 
 
 
