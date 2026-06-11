@@ -74,6 +74,17 @@ class PersistentTask:
             is_completed=bool(data.get("is_completed", False)),
         )
 
+class PersistentProject:
+    def __init__(self, title: str, tasks: List[PersistentTask] | None = None) -> None:
+        self.title = title
+        self.tasks = tasks or []
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "title": self.title,
+            "tasks": [task.to_dict() for task in self.tasks],
+        }
+
 
 
 
