@@ -67,6 +67,13 @@ class PersistentTask:
             "is_completed": self.is_completed,
         }
 
+@classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PersistentTask":
+        return cls(
+            title=str(data.get("title", "")),
+            is_completed=bool(data.get("is_completed", False)),
+        )
+
 
 
 
