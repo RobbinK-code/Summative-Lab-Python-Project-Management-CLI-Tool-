@@ -85,6 +85,16 @@ class PersistentProject:
             "tasks": [task.to_dict() for task in self.tasks],
         }
 
+@classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "PersistentProject":
+        raw_tasks = data.get("tasks", [])
+        tasks = []
+        if isinstance(raw_tasks, list):
+            for task_data in raw_tasks:
+                if isinstance(task_data, dict):
+                    tasks.append(PersistentTask.from_dict(task_data))
+        return cls(title=str(data.get("title", "")), tasks=tasks)
+
 
 
 
