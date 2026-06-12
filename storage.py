@@ -1,26 +1,28 @@
 import json
-import os
+from pathlib import Path
 from models import User, Product, Order
 
-DATA_FILE = "bakery_data.json"
+DATA_FILE = Path("bakery_data.json")
 
-def save_data(users_dict, inventory_dict):
+def save_data(users_dict, inventory_dict, file_path=None):
+    path = Path(file_path) if file_path else DATA_FILE
     try:
         saved_dict = {
             "users": {name: u.to_dict() for name, u in users_dict.items()},
             "inventory": {name: p.to_dict() for name, p in inventory_dict.items()}
         }
-        with open(DATA_FILE, "w") as f:
+        with path.open("w", encoding="utf-8") as f:
             json.dump(saved_dict, f, indent=4)
     except IOError:
         print("[Storage Error] Failed to write data to file.")
 
-def load_data(engine_instance):
-    if not os.path.exists(DATA_FILE):
+def load_data(engine_instance, file_path=None):
+    path = Path(file_path) if file_path else DATA_FILE
+    if not path.exists():
         return
 
     try:
-        with open(DATA_FILE, "r") as f:
+        with path.open("r", encoding="utf-8") as f:
             raw_data = json.load(f)
             
             # 1. Rebuild Menu Inventory Items
