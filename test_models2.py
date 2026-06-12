@@ -69,3 +69,16 @@ def test_user_secure_password_hashing():
     # Assert validation checks return clean true/false responses
     assert u.check_password("secureBake123") is True
     assert u.check_password("wrongPass") is False
+
+
+def test_user_to_dict_returns_serializable_data():
+    u = User("Emma", "secret", role="Staff")
+    u.completed_orders.append(Order("Muffin", 1, 3.00))
+
+    data = u.to_dict()
+    assert data["name"] == "Emma"
+    assert data["role"] == "Staff"
+    assert data["password_hash"] == u.password_hash
+    assert data["completed_orders"][0]["product_name"] == "Muffin"
+    assert data["completed_orders"][0]["quantity"] == 1
+    assert data["completed_orders"][0]["total_cost"] == 3.00
