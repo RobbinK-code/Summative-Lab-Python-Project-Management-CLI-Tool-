@@ -1,65 +1,137 @@
-from models import User, Product, Order
+from functools import wraps
+
+from models import User, Project, Task
+
 
 def require_manager(func):
-    """Custom Decorator: Only allows users with the 'Manager' role to proceed."""
+    @wraps(func)
     def wrapper(self, active_user, *args, **kwargs):
         if active_user.role != "Manager":
-            return False, "Access Denied: Only a Bakery Manager can do this!"
+            return False, "Access Denied: Manager role required."
         return func(self, active_user, *args, **kwargs)
     return wrapper
 
-class BakeryEngine:
-    def __init__(self):
-        self.users = {}      # {"username": UserObject}
-        self.inventory = {}  # {"Croissant": ProductObject}
 
-    def register(self, name, password, role="Staff"):
+def require_authenticated(func):
+    @wraps(func)
+    def wrapper(self, active_user, *args, **kwargs):
+        if active_user is None:
+            return False, "Authentication required."
+        return func(self, active_user, *args, **kwargs)
+    return wrapper
+
+
+class ProjectManagementEngine:
+    def __init__(self):
+        self.users = {}
+        self.projects = {}
+
+    def register(self, name, password, role="Member"):
         if name in self.users:
             return False, "Username already exists."
+        if role not in {"Manager", "Member"}:
+            return False, "Role must be Manager or Member."
         self.users[name] = User(name, password, role)
-        return True, f"Employee '{name}' registered as {role}."
+        return True, f"User '{name}' registered as {role}."
 
     def login(self, name, password):
-        if name not in self.users or not self.users[name].check_password(password):
+        if name not in self.users:
             return None, "Invalid credentials."
-        return self.users[name], "Login successful."
+        user = self.users[name]
+        if not user.check_password(password):
+            return None, "Invalid credentials."
+        return user, "Login successful."
 
     @require_manager
-    def add_inventory_item(self, active_user, item_name, price, stock):
-        """Manager Only: Adds a new pastry/bread type or updates stock."""
-        if item_name in self.inventory:
-            # Update stock safely using our setter property validation
-            try:
-                self.inventory[item_name].stock += stock
-                return True, f"Updated '{item_name}' stock to {self.inventory[item_name].stock}."
-            except ValueError as e:
-                return False, str(e)
-        
-        self.inventory[item_name] = Product(item_name, price, stock)
-        return True, f"Successfully added {item_name} to the bakery menu."
+    def create_project(self, active_user, project_name, description):
+        if project_name in self.projects:
+            return False, "Project already exists."
+        self.projects[project_name] = Project(project_name, description, active_user.name)
+        return True, f"Project '{project_name}' created by {active_user.name}."
 
-    def process_bakery_order(self, employee_username, item_name, quantity):
-        """Processes a sale, calculates subtotals, and reduces stock."""
-        if employee_username not in self.users:
-            return False, "Employee user not found."
-        if item_name not in self.inventory:
-            return False, f"We don't bake '{item_name}' here!"
-        
-        user_obj = self.users[employee_username]
-        product = self.inventory[item_name]
+    @require_authenticated
+    def list_users(self, active_user):
+        return list(self.users.values())
 
-        # Business Rule: Check if we have enough stock items left
-        if product.stock < quantity:
-            return False, f"Incomplete Order: Only {product.stock} left in stock!"
+    @require_authenticated
+    def list_projects(self, active_user, owner_name=None):
+        projects = list(self.projects.values())
+        if owner_name:
+            return [project for project in projects if project.owner == owner_name]
+        return projects
 
-        # Calculate Subtotal
-        subtotal = product.price * quantity
-        
-        # Deduct stock using our encapsulation setter property
-        product.stock -= quantity
+    @require_authenticated
+    def tasks_for_assignee(self, active_user, assignee_name):
+        if assignee_name not in self.users:
+            return []
+        tasks = []
+        for project in self.projects.values():
+            for task in project.tasks:
+                if task.assignee == assignee_name:
+                    tasks.append((project.name, task))
+        return tasks
 
-        # Create order record and save to user history
-        new_order = Order(item_name, quantity, subtotal)
-        user_obj.completed_orders.append(new_order)
+    @require_authenticated
+    def update_task(self, active_user, project_name, task_title, description=None, due_date=None, assignee=None):
+        if project_name not in self.projects:
+            return False, "Project not found."
+        project = self.projects[project_name]
+        task = project.find_task(task_title)
+        if task is None:
+            return False, "Task not found."
+        if active_user.role != "Manager" and project.owner != active_user.name and task.assignee != active_user.name:
+            return False, "Only the assignee, project owner, or a Manager can update the task."
+        if assignee and assignee not in self.users:
+            return False, "Assignee user does not exist."
+        if description:
+            task.description = description
+        if due_date is not None:
+            task.due_date = due_date
+        if assignee:
+            task.assignee = assignee
+        return True, f"Task '{task_title}' updated in project '{project_name}'."
 
-        return True, f"Order Complete! Total: ${subtotal:.2f}. (Remaining stock: {product.stock})"
+    @require_authenticated
+    def add_task(self, active_user, project_name, title, description, assignee=None, due_date=None):
+        if project_name not in self.projects:
+            return False, "Project not found."
+        project = self.projects[project_name]
+        if active_user.role != "Manager" and project.owner != active_user.name:
+            return False, "Only the project owner or a Manager can add tasks."
+        if project.find_task(title):
+            return False, "Task title already exists in the project."
+        if assignee and assignee not in self.users:
+            return False, "Assignee user does not exist."
+        new_task = Task(title, description, active_user.name, assignee=assignee, due_date=due_date)
+        project.add_task(new_task)
+        return True, f"Task '{title}' added to project '{project_name}'."
+
+    @require_manager
+    def assign_task(self, active_user, project_name, task_title, assignee_name):
+        if project_name not in self.projects:
+            return False, "Project not found."
+        if assignee_name not in self.users:
+            return False, "Assignee does not exist."
+        project = self.projects[project_name]
+        task = project.find_task(task_title)
+        if task is None:
+            return False, "Task not found."
+        task.assignee = assignee_name
+        return True, f"Task '{task_title}' assigned to {assignee_name}."
+
+    @require_authenticated
+    def complete_task(self, active_user, project_name, task_title):
+        if project_name not in self.projects:
+            return False, "Project not found."
+        project = self.projects[project_name]
+        task = project.find_task(task_title)
+        if task is None:
+            return False, "Task not found."
+        if task.assignee and task.assignee != active_user.name and active_user.role != "Manager":
+            return False, "Only the assignee or a Manager can complete this task."
+        task.mark_complete()
+        return True, f"Task '{task_title}' in project '{project_name}' marked complete."
+
+    @require_authenticated
+    def get_project(self, active_user, project_name):
+        return self.projects.get(project_name)
